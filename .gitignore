@@ -1,0 +1,6 @@
+venv/
+honeypots/__pycache__/
+honeypots/configs/*
+!honeypots/configs/.gitkeep
+honeypots/logs/*
+!honeypots/logs/.gitkeep

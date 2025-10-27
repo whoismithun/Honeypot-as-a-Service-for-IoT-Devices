@@ -4,3 +4,4 @@ honeypots/configs/*
 !honeypots/configs/.gitkeep
 honeypots/logs/*
 !honeypots/logs/.gitkeep
+honeypots/ssh_host_key

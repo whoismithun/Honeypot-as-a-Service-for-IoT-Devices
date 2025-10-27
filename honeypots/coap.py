@@ -480,7 +480,7 @@ class CoAPSession:
         if not self.session_log:
             return
         
-        log_dir = Path(self.config.get("log_directory", "coap_honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/coap_honeypot_logs"))
         attacks_dir = log_dir / "requests"
         attacks_dir.mkdir(parents=True, exist_ok=True)
         
@@ -508,7 +508,7 @@ class CoAPHoneypot:
             "host": "0.0.0.0",
             "port": 5683,
             "device_name": "CoAP IoT Device",
-            "log_directory": "coap_honeypot_logs",
+            "log_directory": "logs/coap_honeypot_logs",
             "log_file": "coap_honeypot.log",
             "resources": {
                 "/sensor/temp": {"value": "22.5", "type": "sensor", "unit": "celsius", "observable": True},
@@ -546,7 +546,7 @@ class CoAPHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "coap_honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/coap_honeypot_logs"))
         log_dir.mkdir(exist_ok=True)
         
         log_file = log_dir / self.config.get("log_file", "coap_honeypot.log")
@@ -609,5 +609,5 @@ class CoAPHoneypot:
             sock.close()
 
 if __name__ == "__main__":
-    honeypot = CoAPHoneypot("coap_honeypot_config.json")
+    honeypot = CoAPHoneypot("configs/coap_honeypot_config.json")
     honeypot.start()

@@ -237,7 +237,7 @@ class TelnetSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/telnet_honeypot_logs"))
         log_dir.mkdir(exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -266,7 +266,7 @@ class TelnetHoneypot:
                 "root": "toor",
                 "user": "password"
             },
-            "log_directory": "honeypot_logs",
+            "log_directory": "logs/telnet_honeypot_logs",
             "log_file": "honeypot.log",
             "filesystem": {
                 "/": ["bin", "etc", "home", "var", "usr", "tmp"],
@@ -297,7 +297,7 @@ class TelnetHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/telnet_honeypot_logs"))
         log_dir.mkdir(exist_ok=True)
         
         log_file = log_dir / self.config.get("log_file", "honeypot.log")
@@ -335,7 +335,7 @@ class TelnetHoneypot:
         
         self.logger.info(f"Telnet honeypot started on {host}:{port}")
         print(f"Telnet honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory', 'honeypot_logs')}")
+        print(f"Logs will be saved to: {self.config.get('log_directory', 'logs/telnet_honeypot_logs')}")
         print("Press Ctrl+C to stop")
         
         try:
@@ -355,5 +355,5 @@ class TelnetHoneypot:
             server.close()
 
 if __name__ == "__main__":
-    honeypot = TelnetHoneypot("honeypot_config.json")
+    honeypot = TelnetHoneypot("configs/telnet_honeypot_config.json")
     honeypot.start()

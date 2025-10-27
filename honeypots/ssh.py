@@ -451,7 +451,7 @@ class SSHSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "ssh_honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/ssh_honeypot_logs"))
         log_dir.mkdir(exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -493,7 +493,7 @@ class SSHHoneypot:
                 "ubuntu": "ubuntu",
                 "pi": "raspberry"
             },
-            "log_directory": "ssh_honeypot_logs",
+            "log_directory": "logs/ssh_honeypot_logs",
             "log_file": "ssh_honeypot.log",
             "host_key_file": "ssh_host_key",
             "filesystem": {
@@ -527,7 +527,7 @@ class SSHHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "ssh_honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "logs/ssh_honeypot_logs"))
         log_dir.mkdir(exist_ok=True)
         
         log_file = log_dir / self.config.get("log_file", "ssh_honeypot.log")
@@ -597,7 +597,7 @@ class SSHHoneypot:
         
         self.logger.info(f"SSH honeypot started on {host}:{port}")
         print(f"SSH honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory', 'ssh_honeypot_logs')}")
+        print(f"Logs will be saved to: {self.config.get('log_directory', 'logs/ssh_honeypot_logs')}")
         print("Press Ctrl+C to stop")
         
         try:
@@ -619,5 +619,5 @@ class SSHHoneypot:
 if __name__ == "__main__":
     # Note: Requires paramiko library
     # Install with: pip install paramiko
-    honeypot = SSHHoneypot("ssh_honeypot_config.json")
+    honeypot = SSHHoneypot("configs/ssh_honeypot_config.json")
     honeypot.start()

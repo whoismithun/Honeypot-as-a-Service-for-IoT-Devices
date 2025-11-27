@@ -6,7 +6,7 @@ import os
 HOST = "0.0.0.0"   # Listen on all network interfaces
 PORT = 8443
 SHARED_SECRET = "mysharedsecret123"     # <-- change this
-CONFIG_FILE = "customer_config_settings"
+CONFIG_FILE = "./customer_config_settings.txt"
 # ---------------------------------------
 
 def handle_client(conn, addr):

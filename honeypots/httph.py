@@ -57,7 +57,7 @@ class FakeFilesystem:
 
 class HTTPHoneypot:
     """Main HTTP honeypot server"""
-    def __init__(self, config_file="http_honeypot_config.json"):
+    def __init__(self, config_file="../configs/http.json"):
         self.app = Flask(__name__)
         self.load_config(config_file)
         self.setup_logging()
@@ -81,8 +81,9 @@ class HTTPHoneypot:
                 "root": "toor",
                 "user": "password"
             },
-            "log_directory": "logs/http_honeypot_logs",
-            "log_file": "http_honeypot.log",
+            # UPDATED: log path
+            "log_directory": "../logs",
+            "log_file": "http.logs",
             "emulate_vulnerabilities": True,
             "filesystem": {
                 "/": ["bin", "etc", "home", "var", "usr", "tmp"],
@@ -109,6 +110,9 @@ class HTTPHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent dir exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -116,10 +120,10 @@ class HTTPHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "logs/http_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "http_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "http.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -155,9 +159,9 @@ class HTTPHoneypot:
     
     def save_attack_log(self, log_entry):
         """Save individual attack logs"""
-        log_dir = Path(self.config.get("log_directory", "logs/http_honeypot_logs"))
+        log_dir = Path(self.config.get("log_directory", "../logs"))
         attacks_dir = log_dir / "attacks"
-        attacks_dir.mkdir(exist_ok=True)
+        attacks_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         ip = log_entry.get("ip", "unknown").replace(".", "_")
@@ -354,11 +358,12 @@ class HTTPHoneypot:
             if request.method == 'POST':
                 file = request.files.get('file')
                 if file:
+                    size = len(file.read())
                     self.log_request("file_upload", {
                         "username": username,
                         "filename": file.filename,
                         "content_type": file.content_type,
-                        "size": len(file.read())
+                        "size": size
                     })
                     return "File uploaded successfully (simulated)"
             
@@ -430,7 +435,7 @@ APP_KEY=base64:randomkey123456789"""
             query = request.args.get('q')
             self.log_request("search", {
                 "query": query,
-                "sql_injection_check": "'" in query if query else False
+                "sql_injection_check": ("'" in query) if query else False
             })
             return f"Search results for: {query}"
         
@@ -440,7 +445,7 @@ APP_KEY=base64:randomkey123456789"""
             comment = request.form.get('comment')
             self.log_request("comment_post", {
                 "comment": comment,
-                "xss_check": "<script>" in comment if comment else False
+                "xss_check": ("<script>" in comment) if comment else False
             })
             return f"Comment posted: {comment}"
         
@@ -483,7 +488,7 @@ APP_KEY=base64:randomkey123456789"""
             return "uid=33(www-data) gid=33(www-data) groups=33(www-data)"
         elif cmd == "uname":
             return "Linux web-server 5.4.0-42-generic x86_64"
-        elif cmd == "wget" or cmd == "curl":
+        elif cmd in ("wget", "curl"):
             return f"{cmd}: command not found (or blocked by firewall)"
         elif cmd == "ps":
             return "PID   COMMAND\n1234  nginx\n5678  php-fpm"
@@ -496,9 +501,12 @@ APP_KEY=base64:randomkey123456789"""
         port = self.config.get("port", 8080)
         ssl_enabled = self.config.get("ssl_enabled", False)
         
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_file = log_dir / self.config.get("log_file", "http.logs")
+        
         self.logger.info(f"HTTP honeypot started on {host}:{port}")
         print(f"HTTP honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory')}")
+        print(f"Logs will be saved to: {log_file}")
         print(f"Access at: http{'s' if ssl_enabled else ''}://{host}:{port}")
         print("Press Ctrl+C to stop")
         
@@ -610,5 +618,5 @@ UPLOAD_TEMPLATE = """
 if __name__ == "__main__":
     # Note: Requires Flask library
     # Install with: pip install flask
-    honeypot = HTTPHoneypot("configs/http_honeypot_config.json")
+    honeypot = HTTPHoneypot("../configs/http.json")
     honeypot.start()

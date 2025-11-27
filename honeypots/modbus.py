@@ -534,8 +534,9 @@ class ModbusSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "modbus_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: default to ../logs, create parents
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = log_dir / f"session_{self.addr[0]}_{self.addr[1]}_{timestamp}.json"
@@ -553,7 +554,7 @@ class ModbusSession:
 
 class ModbusHoneypot:
     """Main Modbus TCP honeypot server"""
-    def __init__(self, config_file="modbus_honeypot_config.json"):
+    def __init__(self, config_file="../configs/modbus.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.scada_device = SCADADevice(self.config)
@@ -565,8 +566,9 @@ class ModbusHoneypot:
             "host": "0.0.0.0",
             "port": 502,
             "device_name": "Industrial PLC Controller",
-            "log_directory": "modbus_honeypot_logs",
-            "log_file": "modbus_honeypot.log",
+            # UPDATED: logs path
+            "log_directory": "../logs",
+            "log_file": "modbus.logs",
             "holding_registers": {
                 0: 1,      # System status (1=running)
                 1: 2250,   # Temperature (22.5°C * 100)
@@ -626,6 +628,9 @@ class ModbusHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent directory exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -633,10 +638,11 @@ class ModbusHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "modbus_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: default to ../logs and parents=True
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "modbus_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "modbus.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -675,9 +681,12 @@ class ModbusHoneypot:
         
         server.listen(5)
         
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_file = log_dir / self.config.get("log_file", "modbus.logs")
+        
         self.logger.info(f"Modbus TCP honeypot started on {host}:{port}")
         print(f"Modbus TCP honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory')}")
+        print(f"Logs will be saved to: {log_file}")
         
         print("\n" + "="*60)
         print("SIMULATED SCADA/ICS DEVICE")
@@ -724,5 +733,5 @@ class ModbusHoneypot:
             server.close()
 
 if __name__ == "__main__":
-    honeypot = ModbusHoneypot("modbus_honeypot_config.json")
+    honeypot = ModbusHoneypot("../configs/modbus.json")
     honeypot.start()

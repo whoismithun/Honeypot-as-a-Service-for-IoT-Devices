@@ -237,8 +237,8 @@ class TelnetSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "logs/telnet_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = log_dir / f"session_{self.addr[0]}_{timestamp}.json"
@@ -248,7 +248,7 @@ class TelnetSession:
 
 class TelnetHoneypot:
     """Main honeypot server"""
-    def __init__(self, config_file="telnet_honeypot_config.json"):
+    def __init__(self, config_file="../configs/telnet.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.running = False
@@ -266,8 +266,9 @@ class TelnetHoneypot:
                 "root": "toor",
                 "user": "password"
             },
-            "log_directory": "logs/telnet_honeypot_logs",
-            "log_file": "honeypot.log",
+            # UPDATED: default logs path
+            "log_directory": "../logs",
+            "log_file": "telnet.logs",
             "filesystem": {
                 "/": ["bin", "etc", "home", "var", "usr", "tmp"],
                 "/home": ["user"],
@@ -290,6 +291,9 @@ class TelnetHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent directory exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -297,10 +301,10 @@ class TelnetHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "logs/telnet_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "telnet.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -335,7 +339,7 @@ class TelnetHoneypot:
         
         self.logger.info(f"Telnet honeypot started on {host}:{port}")
         print(f"Telnet honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory', 'logs/telnet_honeypot_logs')}")
+        print(f"Logs will be saved to: {Path(self.config.get('log_directory', '../logs')) / self.config.get('log_file', 'telnet.logs')}")
         print("Press Ctrl+C to stop")
         
         try:
@@ -355,5 +359,5 @@ class TelnetHoneypot:
             server.close()
 
 if __name__ == "__main__":
-    honeypot = TelnetHoneypot("configs/telnet_honeypot_config.json")
+    honeypot = TelnetHoneypot("../configs/telnet.json")
     honeypot.start()

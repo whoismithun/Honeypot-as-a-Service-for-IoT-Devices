@@ -480,7 +480,8 @@ class CoAPSession:
         if not self.session_log:
             return
         
-        log_dir = Path(self.config.get("log_directory", "logs/coap_honeypot_logs"))
+        # UPDATED: default log_directory -> ../logs
+        log_dir = Path(self.config.get("log_directory", "../logs"))
         attacks_dir = log_dir / "requests"
         attacks_dir.mkdir(parents=True, exist_ok=True)
         
@@ -496,7 +497,7 @@ class CoAPSession:
 
 class CoAPHoneypot:
     """Main CoAP honeypot server"""
-    def __init__(self, config_file="coap_honeypot_config.json"):
+    def __init__(self, config_file="../configs/coap.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.iot_device = IoTDevice(self.config)
@@ -508,8 +509,9 @@ class CoAPHoneypot:
             "host": "0.0.0.0",
             "port": 5683,
             "device_name": "CoAP IoT Device",
-            "log_directory": "logs/coap_honeypot_logs",
-            "log_file": "coap_honeypot.log",
+            # UPDATED: logs under ../logs with filename coap.logs
+            "log_directory": "../logs",
+            "log_file": "coap.logs",
             "resources": {
                 "/sensor/temp": {"value": "22.5", "type": "sensor", "unit": "celsius", "observable": True},
                 "/sensor/humidity": {"value": "45.0", "type": "sensor", "unit": "percent", "observable": True},
@@ -539,6 +541,9 @@ class CoAPHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # ensure configs directory exists
+            cfg_path = Path(config_file)
+            cfg_path.parent.mkdir(parents=True, exist_ok=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -546,10 +551,10 @@ class CoAPHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "logs/coap_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "coap_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "coap.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -560,6 +565,7 @@ class CoAPHoneypot:
             ]
         )
         self.logger = logging.getLogger(__name__)
+        self._log_file_path = log_file  # store for printing later
     
     def start(self):
         """Start CoAP honeypot"""
@@ -572,7 +578,7 @@ class CoAPHoneypot:
         
         self.logger.info(f"CoAP honeypot started on {host}:{port}")
         print(f"CoAP honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory')}")
+        print(f"Logs will be saved to: {self._log_file_path}")
         print("\nSimulated CoAP Resources:")
         for path, resource in self.iot_device.resources.items():
             info = f"  {path}"
@@ -609,5 +615,5 @@ class CoAPHoneypot:
             sock.close()
 
 if __name__ == "__main__":
-    honeypot = CoAPHoneypot("configs/coap_honeypot_config.json")
+    honeypot = CoAPHoneypot("../configs/coap.json")
     honeypot.start()

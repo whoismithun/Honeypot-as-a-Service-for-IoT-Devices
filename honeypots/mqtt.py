@@ -534,8 +534,9 @@ class MQTTSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "logs/mqtt_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: default to ../logs (same dir as main logs)
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         client_id = self.client_id or "unknown"
@@ -556,7 +557,7 @@ class MQTTSession:
 
 class MQTTHoneypot:
     """Main MQTT honeypot broker"""
-    def __init__(self, config_file="mqtt_honeypot_config.json"):
+    def __init__(self, config_file="../configs/mqtt.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.iot_device = IoTDevice(self.config)
@@ -577,8 +578,9 @@ class MQTTHoneypot:
                 "iot": "password",
                 "device": "device123"
             },
-            "log_directory": "logs/mqtt_honeypot_logs",
-            "log_file": "mqtt_honeypot.log",
+            # UPDATED: logs path
+            "log_directory": "../logs",
+            "log_file": "mqtt.logs",
             "devices": {
                 "sensor/temperature": {"type": "sensor", "value": 22.5, "unit": "celsius"},
                 "sensor/humidity": {"type": "sensor", "value": 45.0, "unit": "percent"},
@@ -605,6 +607,9 @@ class MQTTHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent directory exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -612,10 +617,11 @@ class MQTTHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "logs/mqtt_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: default to ../logs and ensure parents=True
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "mqtt_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "mqtt.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -650,13 +656,16 @@ class MQTTHoneypot:
         server.bind((host, port))
         server.listen(5)
         
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_file = log_dir / self.config.get("log_file", "mqtt.logs")
+        
         self.logger.info(f"MQTT honeypot started on {host}:{port}")
         print(f"MQTT honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory')}")
+        print(f"Logs will be saved to: {log_file}")
         print("\nSimulated IoT Devices:")
         for topic, device in self.iot_device.devices.items():
             print(f"  - {topic}: {device}")
-        print("\nConnect with: mosquitto_sub -h localhost -p 1883 -t '#'")
+        print(f"\nConnect with: mosquitto_sub -h {host} -p {port} -t '#'")
         print("Press Ctrl+C to stop\n")
         
         try:
@@ -676,5 +685,5 @@ class MQTTHoneypot:
             server.close()
 
 if __name__ == "__main__":
-    honeypot = MQTTHoneypot("configs/mqtt_honeypot_config.json")
+    honeypot = MQTTHoneypot("../configs/mqtt.json")
     honeypot.start()

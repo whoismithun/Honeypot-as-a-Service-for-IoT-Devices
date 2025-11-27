@@ -451,8 +451,9 @@ class SSHSession:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "logs/ssh_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: use ../logs as default log directory, same as main logs
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = log_dir / f"session_{self.addr[0]}_{self.username}_{timestamp}.json"
@@ -472,7 +473,7 @@ class SSHSession:
 
 class SSHHoneypot:
     """Main SSH honeypot server"""
-    def __init__(self, config_file="ssh_honeypot_config.json"):
+    def __init__(self, config_file="../configs/ssh.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.generate_host_key()
@@ -493,8 +494,9 @@ class SSHHoneypot:
                 "ubuntu": "ubuntu",
                 "pi": "raspberry"
             },
-            "log_directory": "logs/ssh_honeypot_logs",
-            "log_file": "ssh_honeypot.log",
+            # UPDATED: logs path
+            "log_directory": "../logs",
+            "log_file": "ssh.logs",
             "host_key_file": "ssh_host_key",
             "filesystem": {
                 "/": ["bin", "etc", "home", "var", "usr", "tmp", "root"],
@@ -520,6 +522,9 @@ class SSHHoneypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent directory exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -527,10 +532,11 @@ class SSHHoneypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "logs/ssh_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: default to ../logs and ensure parents=True
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "ssh_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "ssh.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -556,6 +562,7 @@ class SSHHoneypot:
     
     def handle_client(self, client_socket, addr):
         """Handle a client connection"""
+        transport = None
         try:
             transport = paramiko.Transport(client_socket)
             transport.add_server_key(self.host_key)
@@ -579,7 +586,8 @@ class SSHHoneypot:
             self.logger.error(f"Error handling client {addr}: {e}")
         finally:
             try:
-                transport.close()
+                if transport is not None:
+                    transport.close()
             except:
                 pass
             client_socket.close()
@@ -595,9 +603,12 @@ class SSHHoneypot:
         server.bind((host, port))
         server.listen(5)
         
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_file = log_dir / self.config.get("log_file", "ssh.logs")
+        
         self.logger.info(f"SSH honeypot started on {host}:{port}")
         print(f"SSH honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory', 'logs/ssh_honeypot_logs')}")
+        print(f"Logs will be saved to: {log_file}")
         print("Press Ctrl+C to stop")
         
         try:
@@ -619,5 +630,5 @@ class SSHHoneypot:
 if __name__ == "__main__":
     # Note: Requires paramiko library
     # Install with: pip install paramiko
-    honeypot = SSHHoneypot("configs/ssh_honeypot_config.json")
+    honeypot = SSHHoneypot("../configs/ssh.json")
     honeypot.start()

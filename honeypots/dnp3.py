@@ -672,8 +672,9 @@ class DNP3Session:
     
     def save_session_log(self):
         """Save session log to file"""
-        log_dir = Path(self.config.get("log_directory", "dnp3_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: use ../logs by default and create parents
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = log_dir / f"session_{self.addr[0]}_{self.addr[1]}_{timestamp}.json"
@@ -691,7 +692,7 @@ class DNP3Session:
 
 class DNP3Honeypot:
     """Main DNP3 honeypot server"""
-    def __init__(self, config_file="dnp3_honeypot_config.json"):
+    def __init__(self, config_file="../configs/dnp3.json"):
         self.load_config(config_file)
         self.setup_logging()
         self.utility_device = UtilityDevice(self.config)
@@ -703,8 +704,9 @@ class DNP3Honeypot:
             "host": "0.0.0.0",
             "port": 20000,
             "device_name": "Substation RTU",
-            "log_directory": "dnp3_honeypot_logs",
-            "log_file": "dnp3_honeypot.log",
+            # UPDATED: logs path
+            "log_directory": "../logs",
+            "log_file": "dnp3.logs",
             "binary_inputs": {
                 0: {"value": True, "name": "Breaker_CB1_Closed"},
                 1: {"value": True, "name": "Breaker_CB2_Closed"},
@@ -752,6 +754,9 @@ class DNP3Honeypot:
             with open(config_file, 'r') as f:
                 self.config = json.load(f)
         else:
+            # Ensure parent dir exists
+            config_path = Path(config_file)
+            config_path.parent.mkdir(exist_ok=True, parents=True)
             self.config = default_config
             with open(config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
@@ -759,10 +764,11 @@ class DNP3Honeypot:
     
     def setup_logging(self):
         """Setup logging"""
-        log_dir = Path(self.config.get("log_directory", "dnp3_honeypot_logs"))
-        log_dir.mkdir(exist_ok=True)
+        # UPDATED: use ../logs and parents=True
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_dir.mkdir(exist_ok=True, parents=True)
         
-        log_file = log_dir / self.config.get("log_file", "dnp3_honeypot.log")
+        log_file = log_dir / self.config.get("log_file", "dnp3.logs")
         
         logging.basicConfig(
             level=logging.INFO,
@@ -792,10 +798,13 @@ class DNP3Honeypot:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind((host, port))
         server.listen(5)
+
+        log_dir = Path(self.config.get("log_directory", "../logs"))
+        log_file = log_dir / self.config.get("log_file", "dnp3.logs")
         
         self.logger.info(f"DNP3 honeypot started on {host}:{port}")
         print(f"DNP3 honeypot listening on {host}:{port}")
-        print(f"Logs will be saved to: {self.config.get('log_directory')}")
+        print(f"Logs will be saved to: {log_file}")
         
         print("\n" + "="*70)
         print("SIMULATED ELECTRIC UTILITY SCADA DEVICE (DNP3)")
@@ -851,5 +860,5 @@ class DNP3Honeypot:
             server.close()
 
 if __name__ == "__main__":
-    honeypot = DNP3Honeypot("dnp3_honeypot_config.json")
+    honeypot = DNP3Honeypot("../configs/dnp3.json")
     honeypot.start()

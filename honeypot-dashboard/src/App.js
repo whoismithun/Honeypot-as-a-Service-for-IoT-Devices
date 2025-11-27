@@ -335,18 +335,7 @@ const SettingsPage = () => {
     }));
   };
 
-  const handleNestedChange = (parent, field, value) => {
-    setConfigs(prev => ({
-      ...prev,
-      [selectedProtocol]: {
-        ...prev[selectedProtocol],
-        [parent]: {
-          ...prev[selectedProtocol]?.[parent],
-          [field]: value
-        }
-      }
-    }));
-  };
+
 
   const saveConfig = async () => {
     setSaving(true);

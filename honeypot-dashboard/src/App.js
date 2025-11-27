@@ -1,19 +1,44 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
-import { MapPin, Activity, Shield, Settings, Clock, Terminal, Globe, PieChart, Save, Play, Square, RefreshCw } from 'lucide-react';
+import {
+  MapPin,
+  Activity,
+  Shield,
+  Settings,
+  Clock,
+  Terminal,
+  Globe,
+  PieChart,
+  Save,
+  Play,
+  Square,
+  RefreshCw,
+  FileText
+} from 'lucide-react';
 
-const API_BASE = 'http://localhost:6000/api';
+const API_BASE = 'http://localhost:5000/api';
 
-// Dashboard Page Component
+const PROTOCOLS = ['telnet', 'ssh', 'http', 'mqtt', 'dnp3', 'coap', 'modbus'];
+
+// ---------- DASHBOARD PAGE ----------
+
 const Dashboard = () => {
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({});
   const [selectedAttack, setSelectedAttack] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // raw log viewer state
+  const [rawProtocol, setRawProtocol] = useState('ssh');
+  const [rawLogs, setRawLogs] = useState('');
+  const [rawLoading, setRawLoading] = useState(false);
+  const [rawError, setRawError] = useState(null);
+
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDashboardData = async () => {
@@ -22,10 +47,12 @@ const Dashboard = () => {
         fetch(`${API_BASE}/logs`),
         fetch(`${API_BASE}/stats`)
       ]);
+
       const logsData = await logsRes.json();
       const statsData = await statsRes.json();
-      setLogs(logsData);
-      setStats(statsData);
+
+      setLogs(Array.isArray(logsData) ? logsData : []);
+      setStats(statsData || {});
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -33,14 +60,44 @@ const Dashboard = () => {
     }
   };
 
+  // ---- Raw log viewer ----
+  const fetchRawLogs = async (protocol = rawProtocol) => {
+    try {
+      setRawLoading(true);
+      setRawError(null);
+      setRawLogs('');
+
+      const res = await fetch(
+        `${API_BASE}/raw-logs?protocol=${encodeURIComponent(protocol)}`
+      );
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // Backend returns plain text: contents of logs/<protocol>.logs
+      const text = await res.text();
+      setRawLogs(text || '(No log data yet)');
+    } catch (err) {
+      console.error('Error fetching raw logs:', err);
+      setRawError('Failed to load raw logs');
+    } finally {
+      setRawLoading(false);
+    }
+  };
+
   const getLocationMarkers = () => {
     const markers = {};
-    logs.forEach(log => {
-      if (log.ip && log.location) {
+    logs.forEach((log) => {
+      if (
+        log.ip &&
+        log.location &&
+        typeof log.location.lat === 'number' &&
+        typeof log.location.lon === 'number'
+      ) {
         if (!markers[log.ip]) {
           markers[log.ip] = { ...log.location, count: 0, ip: log.ip };
         }
-        markers[log.ip].count++;
+        markers[log.ip].count += 1;
       }
     });
     return Object.values(markers);
@@ -65,27 +122,38 @@ const Dashboard = () => {
       coap: '#C4B5A0',
       modbus: '#AFA090'
     };
-    return colors[protocol.toLowerCase()] || '#8B8B8B';
+    return colors[protocol?.toLowerCase()] || '#8B8B8B';
   };
 
   const renderDonutChart = () => {
     const data = getProtocolData();
     const total = data.reduce((sum, d) => sum + d.value, 0);
+    if (total === 0) {
+      return <div className="text-sm text-gray-400">No attack data yet.</div>;
+    }
+
     let currentAngle = 0;
 
     return (
       <svg viewBox="0 0 200 200" className="w-full h-full">
-        <circle cx="100" cy="100" r="80" fill="none" stroke="#F5F5F0" strokeWidth="40"/>
+        <circle
+          cx="100"
+          cy="100"
+          r="80"
+          fill="none"
+          stroke="#F5F5F0"
+          strokeWidth="40"
+        />
         {data.map((item, i) => {
           const percentage = item.value / total;
           const angle = percentage * 360;
           const startAngle = currentAngle;
           currentAngle += angle;
-          
-          const x1 = 100 + 60 * Math.cos((startAngle - 90) * Math.PI / 180);
-          const y1 = 100 + 60 * Math.sin((startAngle - 90) * Math.PI / 180);
-          const x2 = 100 + 60 * Math.cos((currentAngle - 90) * Math.PI / 180);
-          const y2 = 100 + 60 * Math.sin((currentAngle - 90) * Math.PI / 180);
+
+          const x1 = 100 + 60 * Math.cos(((startAngle - 90) * Math.PI) / 180);
+          const y1 = 100 + 60 * Math.sin(((startAngle - 90) * Math.PI) / 180);
+          const x2 = 100 + 60 * Math.cos(((currentAngle - 90) * Math.PI) / 180);
+          const y2 = 100 + 60 * Math.sin(((currentAngle - 90) * Math.PI) / 180);
           const largeArc = angle > 180 ? 1 : 0;
 
           return (
@@ -97,27 +165,46 @@ const Dashboard = () => {
             />
           );
         })}
-        <circle cx="100" cy="100" r="40" fill="white"/>
-        <text x="100" y="105" textAnchor="middle" className="text-2xl font-semibold fill-gray-700">{total}</text>
+        <circle cx="100" cy="100" r="40" fill="white" />
+        <text
+          x="100"
+          y="105"
+          textAnchor="middle"
+          className="text-2xl font-semibold fill-gray-700"
+        >
+          {total}
+        </text>
       </svg>
     );
   };
 
   const renderWorldMap = () => {
     const markers = getLocationMarkers();
-    
+
     return (
       <div className="relative w-full h-full bg-gray-50 rounded-lg overflow-hidden">
         <svg viewBox="0 0 800 400" className="w-full h-full">
           {/* Simplified world map outline */}
-          <path d="M50,200 Q200,150 400,200 T750,200" stroke="#D4A574" strokeWidth="2" fill="none" opacity="0.3"/>
-          <path d="M50,250 Q200,220 400,250 T750,250" stroke="#D4A574" strokeWidth="2" fill="none" opacity="0.3"/>
-          
+          <path
+            d="M50,200 Q200,150 400,200 T750,200"
+            stroke="#D4A574"
+            strokeWidth="2"
+            fill="none"
+            opacity="0.3"
+          />
+          <path
+            d="M50,250 Q200,220 400,250 T750,250"
+            stroke="#D4A574"
+            strokeWidth="2"
+            fill="none"
+            opacity="0.3"
+          />
+
           {/* Plot markers based on lat/long */}
           {markers.map((marker, i) => {
             const x = ((marker.lon + 180) / 360) * 800;
             const y = ((90 - marker.lat) / 180) * 400;
-            
+
             return (
               <g key={i}>
                 <circle
@@ -127,14 +214,14 @@ const Dashboard = () => {
                   fill="#D4A574"
                   opacity="0.6"
                 />
-                <circle cx={x} cy={y} r="3" fill="#8B6F47"/>
-                <title>{`${marker.ip}: ${marker.count} attacks`}</title>
+                <circle cx={x} cy={y} r="3" fill="#8B6F47" />
+                <title>{`${marker.ip}: ${marker.count} events`}</title>
               </g>
             );
           })}
         </svg>
         <div className="absolute bottom-2 left-2 text-xs text-gray-500">
-          <Globe className="w-4 h-4 inline mr-1"/>
+          <Globe className="w-4 h-4 inline mr-1" />
           Attack Origin Map
         </div>
       </div>
@@ -144,7 +231,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <RefreshCw className="w-8 h-8 animate-spin text-gray-400"/>
+        <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -156,58 +243,64 @@ const Dashboard = () => {
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Attacks</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.totalAttacks || 0}</p>
+              <p className="text-sm text-gray-500">Total Events</p>
+              <p className="text-2xl font-semibold text-gray-800">
+                {stats.totalAttacks || 0}
+              </p>
             </div>
-            <Shield className="w-8 h-8 text-gray-400"/>
+            <Shield className="w-8 h-8 text-gray-400" />
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Unique IPs</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.uniqueIPs || 0}</p>
+              <p className="text-2xl font-semibold text-gray-800">
+                {stats.uniqueIPs || 0}
+              </p>
             </div>
-            <MapPin className="w-8 h-8 text-gray-400"/>
+            <MapPin className="w-8 h-8 text-gray-400" />
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Active Honeypots</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.activeHoneypots || 0}</p>
+              <p className="text-2xl font-semibold text-gray-800">
+                {stats.activeHoneypots || 0}
+              </p>
             </div>
-            <Activity className="w-8 h-8 text-gray-400"/>
+            <Activity className="w-8 h-8 text-gray-400" />
           </div>
         </div>
         <div className="bg-white p-4 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Commands Logged</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.commandsLogged || 0}</p>
+              <p className="text-2xl font-semibold text-gray-800">
+                {stats.commandsLogged || 0}
+              </p>
             </div>
-            <Terminal className="w-8 h-8 text-gray-400"/>
+            <Terminal className="w-8 h-8 text-gray-400" />
           </div>
         </div>
       </div>
 
       {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* World Map */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
+        <div className="xl:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <Globe className="w-5 h-5 mr-2 text-gray-600"/>
+            <Globe className="w-5 h-5 mr-2 text-gray-600" />
             Attack Origin Map
           </h3>
-          <div className="h-80">
-            {renderWorldMap()}
-          </div>
+          <div className="h-80">{renderWorldMap()}</div>
         </div>
 
         {/* Protocol Distribution */}
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <PieChart className="w-5 h-5 mr-2 text-gray-600"/>
+            <PieChart className="w-5 h-5 mr-2 text-gray-600" />
             Protocol Distribution
           </h3>
           <div className="h-80 flex items-center justify-center">
@@ -217,7 +310,10 @@ const Dashboard = () => {
             {getProtocolData().map((item, i) => (
               <div key={i} className="flex items-center justify-between text-sm">
                 <div className="flex items-center">
-                  <div className="w-3 h-3 rounded-full mr-2" style={{backgroundColor: item.color}}/>
+                  <div
+                    className="w-3 h-3 rounded-full mr-2"
+                    style={{ backgroundColor: item.color }}
+                  />
                   <span className="text-gray-700 capitalize">{item.name}</span>
                 </div>
                 <span className="text-gray-600 font-medium">{item.value}</span>
@@ -227,60 +323,175 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Timeline */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-          <Clock className="w-5 h-5 mr-2 text-gray-600"/>
-          Attack Timeline
-        </h3>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {logs.slice(0, 50).map((log, i) => (
-            <div
-              key={i}
-              onClick={() => setSelectedAttack(log)}
-              className="flex items-center justify-between p-3 hover:bg-gray-50 rounded cursor-pointer border border-gray-100"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="text-xs text-gray-500 w-32">
-                  {new Date(log.timestamp).toLocaleString()}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4 text-gray-400"/>
-                  <span className="text-sm font-mono text-gray-700">{log.ip}</span>
-                </div>
-                <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 capitalize">
-                  {log.protocol}
-                </span>
-                <span className="text-sm text-gray-600">{log.type}</span>
+      {/* Timeline + Raw Logs */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Timeline */}
+        <div className="xl:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items_center">
+            <Clock className="w-5 h-5 mr-2 text-gray-600" />
+            Attack / Event Timeline
+          </h3>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {logs.length === 0 && (
+              <div className="text-sm text-gray-400">
+                No events yet. Once honeypots receive traffic, they&apos;ll show
+                up here.
               </div>
-              <Terminal className="w-4 h-4 text-gray-400"/>
-            </div>
-          ))}
+            )}
+            {logs.slice(0, 100).map((log, i) => (
+              <div
+                key={log.id || `${log.ip}-${log.timestamp}-${i}`}
+                onClick={() => setSelectedAttack(log)}
+                className="flex items-center justify-between p-3 hover:bg-gray-50 rounded cursor-pointer border border-gray-100"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="text-xs text-gray-500 w-40">
+                    {log.timestamp
+                      ? new Date(log.timestamp).toLocaleString()
+                      : '-'}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-mono text-gray-700">
+                      {log.ip || 'unknown'}
+                    </span>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 capitalize">
+                    {log.protocol || 'unknown'}
+                  </span>
+                  <span className="text-xs px-2 py-1 rounded bg-gray-50 text-gray-500">
+                    {log.type || 'event'}
+                  </span>
+                </div>
+                <Terminal className="w-4 h-4 text-gray-400" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Raw Log Viewer */}
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <FileText className="w-5 h-5 mr-2 text-gray-600" />
+            Raw Log Viewer
+          </h3>
+
+          <div className="flex items-center mb-3 space-x-2">
+            <select
+              value={rawProtocol}
+              onChange={(e) => {
+                const value = e.target.value;
+                setRawProtocol(value);
+                fetchRawLogs(value);
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+            >
+              {PROTOCOLS.map((p) => (
+                <option key={p} value={p}>
+                  {p.toUpperCase()}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => fetchRawLogs()}
+              className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 flex items-center"
+            >
+              {rawLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Loading
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Load
+                </>
+              )}
+            </button>
+          </div>
+
+          {rawError && (
+            <div className="text-xs text-red-500 mb-2">{rawError}</div>
+          )}
+
+          <div className="h-64 border border-gray-200 rounded-lg bg-black text-green-300 text-xs overflow-auto p-3 font-mono">
+            {rawLogs ? (
+              <pre className="whitespace-pre-wrap">{rawLogs}</pre>
+            ) : rawLoading ? (
+              <div className="text-gray-400">Loading logs...</div>
+            ) : (
+              <div className="text-gray-500">
+                Click &quot;Load&quot; to view contents of{' '}
+                <span className="font-semibold">
+                  logs/{rawProtocol}.logs
+                </span>{' '}
+                on the server.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Attack Details Modal */}
       {selectedAttack && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50" onClick={() => setSelectedAttack(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-96 overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedAttack(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-xl font-semibold text-gray-800">Attack Details</h3>
-                <p className="text-sm text-gray-500 mt-1">{selectedAttack.ip} - {new Date(selectedAttack.timestamp).toLocaleString()}</p>
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Event / Attack Details
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedAttack.ip || 'unknown'} —{' '}
+                  {selectedAttack.timestamp
+                    ? new Date(selectedAttack.timestamp).toLocaleString()
+                    : '-'}
+                </p>
               </div>
-              <button onClick={() => setSelectedAttack(null)} className="text-gray-400 hover:text-gray-600">×</button>
+              <button
+                onClick={() => setSelectedAttack(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
             </div>
-            <div className="bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm">
-              <div className="mb-2">
-                <span className="text-gray-400">Type:</span> {selectedAttack.type}
+            <div className="bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm space-y-2">
+              <div>
+                <span className="text-gray-400">Type: </span>
+                {selectedAttack.type || 'event'}
               </div>
-              <div className="mb-2">
-                <span className="text-gray-400">Protocol:</span> {selectedAttack.protocol}
+              <div>
+                <span className="text-gray-400">Protocol: </span>
+                {selectedAttack.protocol || 'unknown'}
               </div>
+              {selectedAttack.command && (
+                <div>
+                  <span className="text-gray-400">Command: </span>
+                  {selectedAttack.command}
+                </div>
+              )}
               {selectedAttack.data && (
                 <div>
                   <span className="text-gray-400">Data:</span>
-                  <pre className="mt-2 text-xs whitespace-pre-wrap">{JSON.stringify(selectedAttack.data, null, 2)}</pre>
+                  <pre className="mt-2 text-xs whitespace-pre-wrap">
+                    {typeof selectedAttack.data === 'string'
+                      ? selectedAttack.data
+                      : JSON.stringify(selectedAttack.data, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {selectedAttack.raw && (
+                <div>
+                  <span className="text-gray-400">Raw Log:</span>
+                  <pre className="mt-2 text-xs whitespace-pre-wrap">
+                    {selectedAttack.raw}
+                  </pre>
                 </div>
               )}
             </div>
@@ -291,14 +502,13 @@ const Dashboard = () => {
   );
 };
 
-// Settings Page Component
+// ---------- SETTINGS PAGE ----------
+
 const SettingsPage = () => {
   const [configs, setConfigs] = useState({});
   const [selectedProtocol, setSelectedProtocol] = useState('telnet');
   const [honeypotStatus, setHoneypotStatus] = useState({});
   const [saving, setSaving] = useState(false);
-
-  const protocols = ['telnet', 'ssh', 'http', 'mqtt', 'dnp3', 'coap', 'modbus'];
 
   useEffect(() => {
     fetchConfigs();
@@ -309,7 +519,7 @@ const SettingsPage = () => {
     try {
       const response = await fetch(`${API_BASE}/configs`);
       const data = await response.json();
-      setConfigs(data);
+      setConfigs(data || {});
     } catch (error) {
       console.error('Error fetching configs:', error);
     }
@@ -319,14 +529,14 @@ const SettingsPage = () => {
     try {
       const response = await fetch(`${API_BASE}/status`);
       const data = await response.json();
-      setHoneypotStatus(data);
+      setHoneypotStatus(data || {});
     } catch (error) {
       console.error('Error fetching status:', error);
     }
   };
 
   const handleConfigChange = (field, value) => {
-    setConfigs(prev => ({
+    setConfigs((prev) => ({
       ...prev,
       [selectedProtocol]: {
         ...prev[selectedProtocol],
@@ -335,15 +545,13 @@ const SettingsPage = () => {
     }));
   };
 
-
-
   const saveConfig = async () => {
     setSaving(true);
     try {
       await fetch(`${API_BASE}/configs/${selectedProtocol}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configs[selectedProtocol])
+        body: JSON.stringify(configs[selectedProtocol] || {})
       });
       alert('Configuration saved successfully!');
     } catch (error) {
@@ -356,7 +564,9 @@ const SettingsPage = () => {
   const toggleHoneypot = async (protocol) => {
     try {
       const action = honeypotStatus[protocol] ? 'stop' : 'start';
-      await fetch(`${API_BASE}/honeypot/${protocol}/${action}`, { method: 'POST' });
+      await fetch(`${API_BASE}/honeypot/${protocol}/${action}`, {
+        method: 'POST'
+      });
       fetchHoneypotStatus();
     } catch (error) {
       console.error('Error toggling honeypot:', error);
@@ -368,13 +578,17 @@ const SettingsPage = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-lg border border-gray-200">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Honeypot Settings</h2>
-        
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+          Honeypot Settings
+        </h2>
+
         {/* Protocol Selection */}
         <div className="mb-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Select Protocol</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">
+            Select Protocol
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-            {protocols.map(protocol => (
+            {PROTOCOLS.map((protocol) => (
               <button
                 key={protocol}
                 onClick={() => setSelectedProtocol(protocol)}
@@ -385,10 +599,19 @@ const SettingsPage = () => {
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">{protocol}</span>
-                  <div className={`w-2 h-2 rounded-full ${honeypotStatus[protocol] ? 'bg-green-500' : 'bg-gray-300'}`}/>
+                  <span className="text-sm font-medium text-gray-700">
+                    {protocol}
+                  </span>
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      honeypotStatus[protocol]
+                        ? 'bg-green-500'
+                        : 'bg-gray-300'
+                    }`}
+                  />
                 </div>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleHoneypot(protocol);
@@ -399,7 +622,17 @@ const SettingsPage = () => {
                       : 'bg-green-100 text-green-700 hover:bg-green-200'
                   }`}
                 >
-                  {honeypotStatus[protocol] ? <><Square className="w-3 h-3 inline mr-1"/>Stop</> : <><Play className="w-3 h-3 inline mr-1"/>Start</>}
+                  {honeypotStatus[protocol] ? (
+                    <>
+                      <Square className="w-3 h-3 inline mr-1" />
+                      Stop
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3 h-3 inline mr-1" />
+                      Start
+                    </>
+                  )}
                 </button>
               </button>
             ))}
@@ -410,10 +643,14 @@ const SettingsPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Basic Settings */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Basic Settings</h3>
-            
+            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+              Basic Settings
+            </h3>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Host
+              </label>
               <input
                 type="text"
                 value={currentConfig.host || '0.0.0.0'}
@@ -423,17 +660,26 @@ const SettingsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Port
+              </label>
               <input
                 type="number"
                 value={currentConfig.port || ''}
-                onChange={(e) => handleConfigChange('port', parseInt(e.target.value))}
+                onChange={(e) =>
+                  handleConfigChange(
+                    'port',
+                    parseInt(e.target.value, 10) || 0
+                  )
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-transparent"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hostname</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Hostname
+              </label>
               <input
                 type="text"
                 value={currentConfig.hostname || ''}
@@ -443,7 +689,9 @@ const SettingsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Banner</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Banner
+              </label>
               <textarea
                 value={currentConfig.banner || ''}
                 onChange={(e) => handleConfigChange('banner', e.target.value)}
@@ -456,25 +704,42 @@ const SettingsPage = () => {
               <input
                 type="checkbox"
                 checked={currentConfig.allow_all_logins || false}
-                onChange={(e) => handleConfigChange('allow_all_logins', e.target.checked)}
+                onChange={(e) =>
+                  handleConfigChange('allow_all_logins', e.target.checked)
+                }
                 className="w-4 h-4 text-gray-600 border-gray-300 rounded focus:ring-gray-400"
               />
-              <label className="ml-2 text-sm text-gray-700">Allow All Logins</label>
+              <label className="ml-2 text-sm text-gray-700">
+                Allow All Logins
+              </label>
             </div>
           </div>
 
           {/* Advanced Settings */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Advanced Settings</h3>
-            
+            <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">
+              Advanced Settings
+            </h3>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valid Credentials</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Valid Credentials
+              </label>
               <textarea
-                value={JSON.stringify(currentConfig.valid_credentials || {}, null, 2)}
+                value={JSON.stringify(
+                  currentConfig.valid_credentials || {},
+                  null,
+                  2
+                )}
                 onChange={(e) => {
                   try {
-                    handleConfigChange('valid_credentials', JSON.parse(e.target.value));
-                  } catch {}
+                    handleConfigChange(
+                      'valid_credentials',
+                      JSON.parse(e.target.value)
+                    );
+                  } catch {
+                    // ignore JSON errors for now
+                  }
                 }}
                 rows={5}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
@@ -483,13 +748,17 @@ const SettingsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Filesystem Structure</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Filesystem Structure
+              </label>
               <textarea
                 value={JSON.stringify(currentConfig.filesystem || {}, null, 2)}
                 onChange={(e) => {
                   try {
                     handleConfigChange('filesystem', JSON.parse(e.target.value));
-                  } catch {}
+                  } catch {
+                    // ignore
+                  }
                 }}
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
@@ -498,13 +767,17 @@ const SettingsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Files</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Custom Files
+              </label>
               <textarea
                 value={JSON.stringify(currentConfig.files || {}, null, 2)}
                 onChange={(e) => {
                   try {
                     handleConfigChange('files', JSON.parse(e.target.value));
-                  } catch {}
+                  } catch {
+                    // ignore
+                  }
                 }}
                 rows={5}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-gray-400 focus:border-transparent"
@@ -514,13 +787,13 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify_end">
           <button
             onClick={saveConfig}
             disabled={saving}
             className="flex items-center px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
           >
-            <Save className="w-4 h-4 mr-2"/>
+            <Save className="w-4 h-4 mr-2" />
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>
         </div>
@@ -529,7 +802,8 @@ const SettingsPage = () => {
   );
 };
 
-// Main App Component
+// ---------- MAIN APP ----------
+
 const App = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
 
@@ -538,10 +812,12 @@ const App = () => {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify_between items-center py-4">
             <div className="flex items-center space-x-3">
-              <Shield className="w-8 h-8 text-gray-700"/>
-              <h1 className="text-2xl font-bold text-gray-800">IoT Honeypot Service</h1>
+              <Shield className="w-8 h-8 text-gray-700" />
+              <h1 className="text-2xl font-bold text-gray-800">
+                IoT Honeypot Service
+              </h1>
             </div>
             <nav className="flex space-x-1">
               <button
@@ -552,7 +828,7 @@ const App = () => {
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <Activity className="w-4 h-4 mr-2"/>
+                <Activity className="w-4 h-4 mr-2" />
                 Dashboard
               </button>
               <button
@@ -563,7 +839,7 @@ const App = () => {
                     : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <Settings className="w-4 h-4 mr-2"/>
+                <Settings className="w-4 h-4 mr-2" />
                 Settings
               </button>
             </nav>
@@ -580,3 +856,4 @@ const App = () => {
 };
 
 export default App;
+

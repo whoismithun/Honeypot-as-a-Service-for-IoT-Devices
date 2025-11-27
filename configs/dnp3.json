@@ -1,0 +1,156 @@
+{
+  "host": "0.0.0.0",
+  "port": 20000,
+  "device_name": "Substation RTU",
+  "log_directory": "../logs",
+  "log_file": "dnp3.logs",
+  "binary_inputs": {
+    "0": {
+      "value": true,
+      "name": "Breaker_CB1_Closed"
+    },
+    "1": {
+      "value": true,
+      "name": "Breaker_CB2_Closed"
+    },
+    "2": {
+      "value": false,
+      "name": "Breaker_CB3_Closed"
+    },
+    "3": {
+      "value": false,
+      "name": "Alarm_OverCurrent"
+    },
+    "4": {
+      "value": false,
+      "name": "Alarm_UnderVoltage"
+    },
+    "5": {
+      "value": true,
+      "name": "System_Normal"
+    },
+    "6": {
+      "value": false,
+      "name": "Emergency_Stop"
+    },
+    "7": {
+      "value": true,
+      "name": "SCADA_Connected"
+    },
+    "8": {
+      "value": false,
+      "name": "Generator_Running"
+    },
+    "9": {
+      "value": true,
+      "name": "Grid_Connected"
+    }
+  },
+  "binary_outputs": {
+    "0": {
+      "value": false,
+      "name": "Trip_CB1"
+    },
+    "1": {
+      "value": false,
+      "name": "Trip_CB2"
+    },
+    "2": {
+      "value": false,
+      "name": "Close_CB3"
+    },
+    "3": {
+      "value": false,
+      "name": "Start_Generator"
+    },
+    "4": {
+      "value": false,
+      "name": "Alarm_Reset"
+    }
+  },
+  "analog_inputs": {
+    "0": {
+      "value": 13800,
+      "name": "Voltage_L1",
+      "unit": "V"
+    },
+    "1": {
+      "value": 13750,
+      "name": "Voltage_L2",
+      "unit": "V"
+    },
+    "2": {
+      "value": 13820,
+      "name": "Voltage_L3",
+      "unit": "V"
+    },
+    "3": {
+      "value": 245,
+      "name": "Current_L1",
+      "unit": "A"
+    },
+    "4": {
+      "value": 238,
+      "name": "Current_L2",
+      "unit": "A"
+    },
+    "5": {
+      "value": 251,
+      "name": "Current_L3",
+      "unit": "A"
+    },
+    "6": {
+      "value": 5985,
+      "name": "Active_Power",
+      "unit": "kW"
+    },
+    "7": {
+      "value": 1250,
+      "name": "Reactive_Power",
+      "unit": "kVAR"
+    },
+    "8": {
+      "value": 6000,
+      "name": "Frequency",
+      "unit": "mHz"
+    },
+    "9": {
+      "value": 95,
+      "name": "Power_Factor",
+      "unit": "%"
+    }
+  },
+  "analog_outputs": {
+    "0": {
+      "value": 13800,
+      "name": "Voltage_Setpoint",
+      "unit": "V"
+    },
+    "1": {
+      "value": 6000,
+      "name": "Frequency_Setpoint",
+      "unit": "mHz"
+    },
+    "2": {
+      "value": 5000,
+      "name": "Power_Setpoint",
+      "unit": "kW"
+    }
+  },
+  "counters": {
+    "0": {
+      "value": 123456,
+      "name": "Energy_Import",
+      "unit": "kWh"
+    },
+    "1": {
+      "value": 45678,
+      "name": "Energy_Export",
+      "unit": "kWh"
+    },
+    "2": {
+      "value": 9876,
+      "name": "Event_Counter"
+    }
+  }
+}

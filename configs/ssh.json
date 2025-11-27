@@ -1,0 +1,62 @@
+{
+  "host": "0.0.0.0",
+  "port": 2222,
+  "hostname": "debian-server",
+  "allow_all_logins": true,
+  "allow_pubkey_auth": true,
+  "valid_credentials": {
+    "admin": "admin",
+    "root": "toor",
+    "user": "password",
+    "ubuntu": "ubuntu",
+    "pi": "raspberry"
+  },
+  "log_directory": "../logs",
+  "log_file": "ssh.logs",
+  "host_key_file": "ssh_host_key",
+  "filesystem": {
+    "/": [
+      "bin",
+      "etc",
+      "home",
+      "var",
+      "usr",
+      "tmp",
+      "root"
+    ],
+    "/home": [
+      "user"
+    ],
+    "/home/user": [
+      "documents",
+      "downloads",
+      ".bash_history",
+      ".ssh"
+    ],
+    "/etc": [
+      "passwd",
+      "shadow",
+      "hosts",
+      "ssh",
+      "network"
+    ],
+    "/var": [
+      "log",
+      "www"
+    ],
+    "/tmp": [],
+    "/root": [
+      ".ssh",
+      ".bash_history"
+    ]
+  },
+  "files": {
+    "/etc/passwd": "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000::/home/user:/bin/bash",
+    "/etc/hosts": "127.0.0.1 localhost\n192.168.1.1 router",
+    "/home/user/.bash_history": "ls -la\ncat /etc/passwd\nwhoami",
+    "/etc/ssh/sshd_config": "Port 22\nPermitRootLogin yes"
+  },
+  "uname_output": "Linux debian-server 5.10.0-21-amd64 #1 SMP Debian 5.10.162-1 (2023-01-21) x86_64 GNU/Linux\n",
+  "ifconfig_output": "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.50  netmask 255.255.255.0\n",
+  "ps_output": "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nroot         1  0.0  0.1 169416 11484 ?        Ss   10:30   0:01 /sbin/init\n"
+}

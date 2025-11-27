@@ -1,0 +1,72 @@
+{
+  "host": "0.0.0.0",
+  "port": 1883,
+  "broker_name": "IoT MQTT Broker",
+  "allow_all_logins": true,
+  "allow_anonymous": true,
+  "valid_credentials": {
+    "admin": "admin",
+    "mqtt": "mqtt",
+    "iot": "password",
+    "device": "device123"
+  },
+  "log_directory": "../logs",
+  "log_file": "mqtt.logs",
+  "devices": {
+    "sensor/temperature": {
+      "type": "sensor",
+      "value": 22.5,
+      "unit": "celsius"
+    },
+    "sensor/humidity": {
+      "type": "sensor",
+      "value": 45.0,
+      "unit": "percent"
+    },
+    "sensor/motion": {
+      "type": "sensor",
+      "value": false,
+      "unit": "boolean"
+    },
+    "light/living_room": {
+      "type": "actuator",
+      "state": "off"
+    },
+    "light/bedroom": {
+      "type": "actuator",
+      "state": "off"
+    },
+    "thermostat/setpoint": {
+      "type": "actuator",
+      "value": 20.0,
+      "unit": "celsius"
+    },
+    "door/front": {
+      "type": "sensor",
+      "state": "closed"
+    },
+    "camera/front": {
+      "type": "sensor",
+      "status": "active"
+    },
+    "alarm/status": {
+      "type": "actuator",
+      "state": "disarmed"
+    },
+    "admin/command": {
+      "type": "admin"
+    },
+    "admin/config": {
+      "type": "admin"
+    },
+    "admin/firmware": {
+      "type": "admin"
+    }
+  },
+  "device_config": {
+    "device_type": "smart_home_hub",
+    "firmware_version": "1.2.3",
+    "model": "SH-100",
+    "manufacturer": "IoTDevices Inc."
+  }
+}

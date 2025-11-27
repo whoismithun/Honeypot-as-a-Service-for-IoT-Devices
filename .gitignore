@@ -1,3 +1,4 @@
 venv/
 honeypots/__pycache__/
 honeypots/ssh_host_key
+node_modules/
